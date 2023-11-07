@@ -1,12 +1,12 @@
 {
-  "name": "file-retrieval-api",
+  "name": "voicerecognition-lava",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Lakshmidhar Vasundara", 
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
@@ -15,5 +15,5 @@
     "mongodb": "^6.2.0",
     "mongoose": "^8.0.0"
   },
-  "description": ""
+  "description": "VIRTUAL ASSISTANT"
 }
