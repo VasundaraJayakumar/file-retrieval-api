@@ -1,128 +1,80 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { Binary } = require('mongodb');
 const app = express();
-const port = process.env.PORT || 3000;
+require('dotenv').config();
 
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB (replace 'your-mongodb-connection-string' with your actual MongoDB URL)
-mongoose.connect('mongodb+srv://ehuser:ehuser@ehospital.7enczr6.mongodb.net/?retryWrites=true&w=majority', {
+// Get MongoDB URI from the environment variables
+const mongoURI = process.env.MONGODB_URI;
+
+// Connect to MongoDB using the MongoDB client
+const { MongoClient } = require('mongodb');
+const client = new MongoClient(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 
-const db = mongoose.connection;
+// Define a route to retrieve files by collection name and filename
+app.get('/files/:collection/:filename', async (req, res) => {
+  await client.connect(); // Connect to MongoDB
+  const db = client.db("htdata");
+  const { collection, filename } = req.params;
 
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-  console.log('Connected to MongoDB');
+  // Use decodeURIComponent to correctly handle special characters in the filename
+  const decodedFilename = decodeURIComponent(filename);
+
+  // Define a map to validate and map the 'type' parameter to collection names
+  const typeToCollectionMap = {
+    bloodtest: 'Bloodtest_Report',
+    mrispine: 'MRI_Spine',
+    ctscanbrain: 'CTScan_Brain',
+    ecgreport: 'ECG_Report',
+    echocardiogram: 'Echocardiogram',
+    ultrasoundabdomen: 'Ultrasound_Abdomen',
+    medicalhistory: 'Medical_History',
+  };
+
+  // Check if the 'type' parameter is valid
+  if (!typeToCollectionMap.hasOwnProperty(collection)) {
+    res.status(400).json({ error: 'Invalid file type' });
+    return;
+  }
+
+  // Use the collection name directly for file retrieval
+  const fileModel = mongoose.model(typeToCollectionMap[collection], new mongoose.Schema({
+    originalname: String,
+    data: Buffer,
+    mimetype: String,
+  }));
+
+  try {
+    const file = await fileModel.findOne({ originalname: decodedFilename });
+
+    if (!file) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    res.setHeader('Content-Type', file.mimetype);
+    res.send(file.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    await client.close(); // Close the MongoDB connection
+  }
 });
 
-// Define a Mongoose model for your files
-const Bloodtest_ReportSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const MRI_SpineSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const CTScan_BrainSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const ECG_ReportSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const EchocardiogramSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const Ultrasound_AbdomenSchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  const Medical_HistorySchema = new mongoose.Schema({
-    originalname: String,
-    data: Buffer,
-    mimetype: String,
-  });
-  
-  // Create models for each schema
-  const Bloodtest_Report = mongoose.model('BloodtestReport', Bloodtest_ReportSchema);
-  const MRI_Spine = mongoose.model('MRI_Spine', MRI_SpineSchema);
-  const CTScan_Brain = mongoose.model('CTScan_Brain', CTScan_BrainSchema);
-  const ECG_Report = mongoose.model('ECG_Report', ECG_ReportSchema);
-  const Echocardiogram = mongoose.model('Echocardiogram', EchocardiogramSchema);
-  const Ultrasound_Abdomen = mongoose.model('Ultrasound_Abdomen', Ultrasound_AbdomenSchema);
-  const Medical_History = mongoose.model('Medical_History', Medical_HistorySchema);
-  
+// Define a route for the root URL ("/")
+app.get('/', (req, res) => {
+  console.log('Received a request to the root URL.');
+  res.send('Welcome to the root of your application!');
+});
 
-// Define a route to retrieve files by filename
-app.get('/files/:type/:filename', async (req, res) => {
-    const { type, filename } = req.params;
-    let fileModel;
-  
-    // Determine the appropriate model based on the type parameter
-    switch (type) {
-      case 'bloodtest':
-        fileModel = Bloodtest_Report;
-        break;
-      case 'mrispine':
-        fileModel = MRI_Spine;
-        break;
-      case 'ctscanbrain':
-        fileModel = CTScan_Brain;
-        break;
-      case 'ecgreport':
-        fileModel = ECG_Report;
-        break;
-      case 'echocardiogram':
-        fileModel = Echocardiogram;
-        break;
-      case 'ultrasoundabdomen':
-        fileModel = Ultrasound_Abdomen;
-        break;
-      case 'medicalhistory':
-        fileModel = Medical_History;
-        break;
-      default:
-        res.status(400).json({ error: 'Invalid file type' });
-        return;
-    }
-  
-    try {
-      const file = await fileModel.findOne({ originalname: filename });
-  
-      if (!file) {
-        res.status(404).json({ error: 'File not found' });
-        return;
-      }
-  
-      res.setHeader('Content-Type', file.mimetype);
-      res.send(file.data);
-    } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-  
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-  });
-  
+// Get the port from the environment variables or use 3000 as a default
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
