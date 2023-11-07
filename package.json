@@ -1,5 +1,5 @@
 {
-  "name": "voicerecognition-lava",
+  "name": "voicerecognition-lava", 
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
