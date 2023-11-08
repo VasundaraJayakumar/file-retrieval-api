@@ -1,6 +1,6 @@
 {
   "name": "voicerecognition-lava", 
-  "version": "1.0.0",
+  "version": "8.0.0",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
