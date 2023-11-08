@@ -29,6 +29,9 @@ app.get('/files/:collection/:filename', async (req, res) => {
   try {
     const { collection, filename } = req.params;
     const decodedFilename = decodeURIComponent(filename);
+    console.log(`Requested Collection: ${collection}`);
+    console.log(`Requested Filename: ${decodedFilename}`);
+ 
     const typeToCollectionMap = {
       bloodtest: 'Bloodtest_Report',
       mrispine: 'MRI_Spine',
@@ -38,21 +41,26 @@ app.get('/files/:collection/:filename', async (req, res) => {
       ultrasoundabdomen: 'Ultrasound_Abdomen',
       medicalhistory: 'Medical_History',
     };
-
+ 
     if (!typeToCollectionMap.hasOwnProperty(collection)) {
+      console.log(`Invalid file type requested: ${collection}`);
       return res.status(400).json({ error: 'Invalid file type' });
     }
-
+ 
     const client = await connectToMongoDB();
+    console.log('Connected to MongoDB successfully.');
+ 
     const db = client.db("htdata");
     const collectionName = typeToCollectionMap[collection];
-
+    console.log(`Using Collection Name: ${collectionName}`);
+ 
     const file = await db.collection(collectionName).findOne({ originalname: decodedFilename });
-
     if (!file) {
+      console.log(`File not found: ${decodedFilename}`);
       return res.status(404).json({ error: 'File not found' });
     }
-
+ 
+    console.log(`File found: ${file.originalname}`);
     res.setHeader('Content-Type', file.mimetype);
     res.send(file.data);
   } catch (error) {
@@ -61,12 +69,3 @@ app.get('/files/:collection/:filename', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  console.log('Received a request to the root URL.');
-  res.send('Welcome to the root of your application!');
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
