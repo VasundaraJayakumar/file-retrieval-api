@@ -25,46 +25,61 @@ async function connectToMongoDB() {
   }
 }
 
-app.get('/files/:collection/:filename', async (req, res) => {
+const typeToCollectionMap = {
+  bloodtest: 'Bloodtest_Report',
+  mrispine: 'MRI_Spine',
+  ctscanbrain: 'CTScan_Brain',
+  ecgreport: 'ECG_Report',
+  echocardiogram: 'Echocardiogram',
+  ultrasoundabdomen: 'Ultrasound_Abdomen',
+  medicalhistory: 'Medical_History',
+};
+
+app.get("/files/:fileType", async (req, res) => {
+  const fileType = req.params.fileType;
+  let client;
+
   try {
-    const { collection, filename } = req.params;
-    const decodedFilename = decodeURIComponent(filename);
-    console.log(`Requested Collection: ${collection}`);
-    console.log(`Requested Filename: ${decodedFilename}`);
- 
-    const typeToCollectionMap = {
-      bloodtest: 'Bloodtest_Report',
-      mrispine: 'MRI_Spine',
-      ctscanbrain: 'CTScan_Brain',
-      ecgreport: 'ECG_Report',
-      echocardiogram: 'Echocardiogram',
-      ultrasoundabdomen: 'Ultrasound_Abdomen',
-      medicalhistory: 'Medical_History',
-    };
- 
-    if (!typeToCollectionMap.hasOwnProperty(collection)) {
-      console.log(`Invalid file type requested: ${collection}`);
-      return res.status(400).json({ error: 'Invalid file type' });
-    }
- 
     const client = await connectToMongoDB();
-    console.log('Connected to MongoDB successfully.');
- 
     const db = client.db("htdata");
-    const collectionName = typeToCollectionMap[collection];
-    console.log(`Using Collection Name: ${collectionName}`);
- 
-    const file = await db.collection(collectionName).findOne({ originalname: decodedFilename });
-    if (!file) {
-      console.log(`File not found: ${decodedFilename}`);
-      return res.status(404).json({ error: 'File not found' });
+    const collectionName = typeToCollectionMap[fileType];
+
+    if (!collectionName) {
+      return res.status(400).send("Invalid file type");
     }
- 
-    console.log(`File found: ${file.originalname}`);
-    res.setHeader('Content-Type', file.mimetype);
-    res.send(file.data);
-  } catch (error) {
-    console.error('Error handling file request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+
+    const collection = db.collection(collectionName);
+    const result = await collection.findOne({});
+
+    if (result) {
+      res.setHeader('Content-Type', result.file.mimetype);
+      res.send(result.file.data);
+    } else {
+      res.status(404).send("File not found");
+    }
+  } catch (err) {
+    console.error(err); 
+    res.status(500).send("Error retrieving data or opening file");
+  } finally {
+    if(client){
+    client.close(); 
+  }
+} 
+});
+
+const PORT = process.env.PORT || 3000; 
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+app.get("/skinCancerData/:id", async (req, res) => {
+  const id = req.params.id;
+  const db = client.db("htdata");
+  const collection = db.collection("Skin_Images");
+  try {
+    const result = await collection.findOne({ patient_id: parseInt(id) });
+    res.send(result);
+  } catch (err) {
+    res.send("Error retrieving data by id");
   }
 });

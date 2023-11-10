@@ -1,12 +1,12 @@
 {
-  "name": "voicerecognition-lava", 
+  "name": "voicerecognition-lava",
   "version": "8.0.0",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
   "keywords": [],
-  "author": "Lakshmidhar Vasundara", 
+  "author": "Lakshmidhar Vasundara",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
